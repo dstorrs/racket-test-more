@@ -1,8 +1,6 @@
 #lang racket
 
-(require racket
-         racket/splicing
-         handy/utils
+(require handy/utils
          )
 
 (provide prefix-for-test-report ; parameter printed at start of each test
