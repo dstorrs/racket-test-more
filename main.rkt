@@ -476,7 +476,7 @@
 ; Total tests passed so far: 3
 ; Total tests failed so far: 0
 ;
-; ### END test-suite: user creation
+; ### END test-suite:   user creation
 ;
 (define-syntax (test-suite stx)
   (syntax-case stx ()
@@ -487,7 +487,7 @@
               ;(say "")
               ;(say "Total tests passed so far: " (tests-passed))
               ;(say "Total tests failed so far: " (tests-failed))
-              (diag "END test-suite: " msg))]))
+              (diag "END test-suite:     " msg))]))
 
 ;;----------------------------------------------------------------------
 
