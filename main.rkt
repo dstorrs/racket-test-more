@@ -385,7 +385,7 @@
 
 ;;----------------------------------------------------------------------
 
-; (define/contract (throws thnk pred [msg ""])
+; (define/contract (throws thnk pred [msg ""] #:strip-message? [strip-message? #t])
 ;
 ; Verify that a thunk DOES throw an exception and that the exception
 ; matches a specified predicate.
@@ -400,14 +400,10 @@
 ; one argument but it can be anything, not just an (exn?)
 ;
 ; NOTE: When providing a string as the value, it is matched against
-; the non-boilerplate part of the exception message (assuming there is
-; an exception).  That means that everything up to the first
+; the exception message (assuming there is
+; an exception).  If #:strip-message? is true then everything up to the first
 ; "expected: " is snipped off, as is everything after the last \n
 ;
-;    (define (get-msg e) (if (exn? e) (exn-message e) e))
-;    (let* ([str (regexp-replace #px"^.+?expected: " (get-msg the-exception) "")]
-;           [str (regexp-replace #px"(.+)\n.+$" str "\\1")])
-;        str)
 (define/contract (throws thnk pred [msg ""] #:strip-message? [strip-message? #t])
   (->* ((-> any) any/c)
        (string? #:strip-message? boolean?)
@@ -608,7 +604,7 @@
 ; detect.  This prefix is prepended to the current value of the
 ; prefix-for-say parameter, so this:
 ;
-;    (parameterize ([prefix-for-say "my awesome message"])
+;    (parameterize ([prefix-for-diag "my awesome message"])
 ;        (diag "foobar"))
 ;
 ; ...is the same as (displayln "\t#### my awesome messagefoobar")
