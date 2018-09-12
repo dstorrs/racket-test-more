@@ -1,8 +1,8 @@
 #lang racket
 (require "../main.rkt"
-         handy/utils)
+         (only-in handy/utils say))
 
-(expect-n-tests 175)
+(expect-n-tests 177)
 
 (define (inner-test thnk [should-pass #t])
   (define result #f)
@@ -380,24 +380,24 @@
    (is-approx 1 -5 #:threshold 10 "1 is approx -5 if #:threshold is 10")
 
    (throws (thunk (is-approx '(a b c) '(d e f)))
-           #px"arguments to is-approx / isnt-approx must be numeric or you must use #:key to include a function that return a numeric measurement from 'got' and 'expected'"
+           #px"arguments to is-approx / isnt-approx must be numeric or else you must include either a #:key function that returns a numeric value or a #:diff-with that will handle the appropriate non-numeric data"
            "throws when given non-numeric and no #:key arg")
 
-   (is-approx '(a b c) '(d e f) #:key length "(is-approx '(a b c) '(d e f) #:key length)")
-   (is-approx '(a b c) '(d e f g) #:key length "(is-approx '(a b c) '(d e f g) #:key length), since default threshold is 1")
+   (is-approx   '(a b c) '(d e f)   #:key length "(is-approx '(a b c) '(d e f) #:key length)")
+   (is-approx   '(a b c) '(d e f g) #:key length "(is-approx '(a b c) '(d e f g) #:key length), since default threshold is 1")
    (isnt-approx '(a b c) '(d e f g) #:key length #:threshold 0 "(isnt-approx '(a b c) '(d e f g) #:key length #:threshold 0)")
 
    (is (is-approx '(a b c) '(d e f g h) #:threshold 10 #:key length
                   "(is-approx '(a b c) '(d e f g h) #:threshold 10 #:key length)")
-       -2
+       2
        "(is-approx '(a b c) '(d e f g h) #:key length #:threshold 10) returns 2")
 
    (define now (current-seconds)) ; epoch time
    (is-approx  (and (sleep 1) (current-seconds)) now "(myfunc) took no more than 1 second")
 
-   (is-approx 7 5   #:threshold -3 "7 is approximately 5 when threshold is -3 and abs-diff? is #t. (5 - 7 = -2, which is between -3 and +3)")
-   (is-approx 5 7   #:threshold -3 "5 is approximately 7 when threshold is -3 and abs-diff? is #f (5 - 2 = -2, which is between -3 and 0)")
-   (isnt-approx 7 5 #:abs-diff? #f #:threshold -3 "7 is NOT approximately 5 when threshold is -3 and abs-diff? is #f (7 - 5 = +2, which is NOT between -3 and 0)")
+   (is-approx 7 5   #:threshold 3 #:abs-diff? #t "7 is approximately 5 when threshold is 3 and abs-diff? is #t. (7 - 5 = 2, which is between -3 and +3)")
+   (is-approx 5 7   #:threshold -3 #:abs-diff? #f "5 is approximately 7 when threshold is -3 and abs-diff? is #f (5 - 2 = -2), which is between -3 and 0)")
+   (isnt-approx 7 5 #:threshold -3 #:abs-diff? #f "7 is NOT approximately 5 when threshold is -3 and abs-diff? is #f (7 - 5 = +2, which is NOT between -3 and 0)")
 
    (let ([myfunc (thunk (make-list 7 'x))])
      (is-approx  (length (myfunc)) 8 "(myfunc) returned a list of about 8 elements"))
@@ -421,30 +421,44 @@
                   #:abs-diff? #f
                   (~a num " is NOT within the expected range (6-9)")))
 
-  (is-approx  (hash 'age 8)
-              (hash 'age 9)
-              #:key (curryr hash-ref 'age)
-              "age is about 9")
+   (is-approx  (hash 'age 8)
+               (hash 'age 9)
+               #:key (curryr hash-ref 'age)
+               "age is about 9")
 
-  ;  The following is a silly example but it shows some of the versatility
-  (for ([str '(foobar Foobar glug Glug)])
-    (is-approx  ((thunk (symbol->string str)))
-                "f"
-                #:key (compose1 char->integer (curryr string-ref 0) string-downcase)
-                #:abs-diff? #f
-                (~a "(myfunc) returns " str "; it starts with either 'f', 'F', 'g', or 'G'")))
+   ;  The following is a silly example but it shows some of the versatility
+   (for ([str '(foobar Foobar glug Glug)])
+     (is-approx  ((thunk (symbol->string str)))
+                 "f"
+                 #:key (compose1 char->integer (curryr string-ref 0) string-downcase)
+                 #:abs-diff? #f
+                 (~a "(myfunc) returns " str "; it starts with either 'f', 'F', 'g', or 'G'")))
 
-  ;  The same test as above except showing that it doesn't accept
-  ;  things starting with 'e' or 'h' (case-insensitive)
-  (for ([str '(eomer Eomer hotel Hotel)])
-    (isnt-approx  ((thunk (symbol->string str)))
-                  "f"
-                  #:key (compose1 char->integer (curryr string-ref 0) string-downcase)
-                  #:abs-diff? #f
-                  (~a "(myfunc) returns " str "; it starts with something that is NOT 'f', 'F', 'g', or 'G'")))
+   ;  The same test as above except showing that it doesn't accept
+   ;  things starting with 'e' or 'h' (case-insensitive)
+   (for ([str '(eomer Eomer hotel Hotel)])
+     (isnt-approx  ((thunk (symbol->string str)))
+                   "f"
+                   #:key (compose1 char->integer (curryr string-ref 0) string-downcase)
+                   #:abs-diff? #f
+                   (~a "(myfunc) returns " str "; it starts with something that is NOT 'f', 'F', 'g', or 'G'")))
 
+   ;  More complex examples:
+   (is-approx  ((thunk "Foobar"))
+               "f"
+               #:key (compose1 char->integer (curryr string-ref 0) string-downcase)
+               "(myfunc) returns a string that starts with 'f', 'F', 'g', or 'G'")
+
+   (is-approx  (hash 'username "tom")
+               (hash 'username "tomas")
+               #:key  (curryr hash-ref 'username)
+               #:abs-diff? #f
+               #:diff-with  (lambda (got expected) (regexp-match (regexp got) expected))
+               #:compare (lambda (diff threshold) (not (false? diff)))
+               "first username matched part of second username")
+
+   )
   )
-)
 
 ;;  @@TODO
 ;; https://docs.racket-lang.org/overeasy/index.html
