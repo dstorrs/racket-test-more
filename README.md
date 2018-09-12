@@ -1,31 +1,43 @@
 (provide prefix-for-test-report ; parameter printed at start of each test
          prefix-for-diag        ; parameter printed at front of each (diag ...) message
+	 
          ok                ; A value is true
          not-ok            ; A value is false
          is-false          ; Alias for not-ok
          is                ; A value is what it should be
+	 
          isnt              ; ...or is not what it shouldn't be
          like              ; A value matches a regex
          unlike            ; A value does not match a regex
+	 
          lives             ; expression does not throw an exception
          dies              ; expression does throw an exception
          throws            ; throws an exception and that exn matches a predicate
+	 
          matches           ; value matches a predicate
          not-matches       ; ...or doesn't
          is-type           ; alias for matches
          isnt-type         ; alias for not-matches
+	 
          is-approx         ; value is roughly the expected value
          isnt-approx       ; ...or not
-         test-suite        ; gather a set of tests together, trap exns, output some extra debugging
+	 
+         test-suite        ; gather a set of tests together, trap exns,
+	                   ;  output some extra debugging
+			   
          make-test-file    ; create a file on disk, populate it
+	 
          expect-n-tests    ; unless N tests ran, print error at end of file execution
          done-testing      ; never mind how many tests we expect, we're okay if we see this
+	 
          diag              ; print a diagnostic message. see prefix-for-diag
+	 
+         test-more-check   ; fundamental test procedure.  All others call this
+	 
+         ;  You generally should not be using these, but you can if you want
+         current-test-num  ; return current test number
          tests-passed      ; # of tests passed so far
          tests-failed      ; # of tests failed so far
-         test-more-check   ; fundamental test procedure.  All others call this
-         current-test-num  ; return current test number
-         ;  You generally should not be using these, but you can if you want
          inc-test-num!     ; tests start at 1.  Use this to change test number (but why?)
          next-test-num     ; return next test number and optionally modify it
 
