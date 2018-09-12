@@ -56,13 +56,13 @@
 ;; - On test-suite, add 'setup' and 'cleanup' keywords that take thunks
 ;;======================================================================
 ; Parameter: prefix-for-test-report
+; Default: ""
 ;
 ; Set this to put a prefix on some or all of your tests.  Example:
 ;
 ;    (parameterize ([prefix-for-test-report "TODO: "])
 ;        ...tests...)
 ;;----------------------------------------------------------------------
-;
 ; Parameter: expect-n-tests
 ; Default  : #f
 ;
@@ -95,7 +95,8 @@
 ;
 ;    In normal cases, there is no reason to touch these.
 ;
-;    current-test-num      ; Parameter that tracks current numbe
+;    ; parameter that tracks current number
+;    current-test-num      
 ;
 ;    ; update the test number.  
 ;    (inc-test-num! inc)   ; increase the current test number by 'inc'
@@ -128,39 +129,43 @@
 ; value used.
 ;
 ;;----------------------------------------------------------------------
+; (ok got [msg ""])
+; (not-ok got [msg ""])   ; opposite of ok
+; (is-false got [msg ""]) ; alias for not-ok; reads better in some cases
 ;
-;    Test:  ok
-;
-; simple boolean check.  Was the value of 'got' true? (i.e., it wasn't #f)
+; Simple boolean check.  Was the value of 'got' true? (i.e., it wasn't #f)
 ;    (ok 7)        ; success.  returns 7. prints just the normal "ok <test-num>" banner
 ;    (ok #f)       ; fail.  returns #f
 ;    (ok 7 "foo")  ; success, returns 7, prints "ok <test-num> - foo"
 ;
-;;----------------------------------------------------------------------
-;    Test: not-ok, is-false
-;
-; Aliases for one another.  The opposite of 'ok'
+;    (not-ok #f)   ; success. Returns #t on success, #f on failure
+;    (is-false #f) ; same as previous
 ;
 ;;----------------------------------------------------------------------
 ; (matches val predicate [msg ""] [op equal?])
 ; (not-matches val predicate [msg ""] [op equal?]) ; opposite of matches
+;
 ; is-type    ; alias for matches
 ; isnt-type  ; alias for not-matches
 ;
 ; Verify that the value of 'got' does / does not match the predicate
 ;
 ;    (matches (my-func) hash? "(my-func) returns a hash")
+;    (is-type (my-func) hash? "(my-func) returns a hash")
+;
 ;    (not-matches 'foo hash? "symbol foo is not a hash")
+;    (isnt-type 'foo hash? "symbol foo is not a hash")
 ;
 ;;----------------------------------------------------------------------
 ; (is val expected [msg ""] <optional comparison func> #:op <optional comparison func>)
+; (isnt val expected [msg ""] <optional comparison func> #:op <optional comparison func>)
 ;
 ;    (is x 8 "x is 8")
 ;    (is (myfunc 7) 8 "(myfunc 7) returns 8")
 ;    (is x 8 "x is 8" =)       ; use = instead of equal? for comparison
 ;    (is x 8 "x is 8" #:op =)  ; use = instead of equal? for comparison
 ;
-; The bread and butter of test-more.  Asks if two values are the same
+; The bread and butter of test-more.  Asks if two values are / not  the same
 ; according to a particular comparison operator. (by default 'equal?')
 ;
 ; Returns the value that was checked (i.e. 'val', the first argument)
@@ -171,11 +176,6 @@
 ; optional parameter, and the better idea of having it be a keyword
 ; came along last.  In order to maintain backwards compatibility, both
 ; are supported.  If both are provided then the positional one wins.
-;
-;;----------------------------------------------------------------------
-; (isnt val expected [msg ""] <optional comparison func> #:op <optional comparison func>)
-;
-; Same as 'is', but it checks that the values are NOT the same
 ;
 ;;----------------------------------------------------------------------
 ; (like val regex [msg ""])   ; Returns the result of the regexp match
@@ -205,8 +205,8 @@
 ; one argument but it can be anything, not just an (exn?)
 ;
 ; NOTE: When providing a string as the value, it is matched against
-; the exception message (assuming there is
-; an exception).  If #:strip-message? is true then everything up to the first
+; the exception message (assuming there is an exception).
+; If #:strip-message? is true then everything up to the first
 ; "expected: " is snipped off, as is everything after the last \n
 ;
 ;;----------------------------------------------------------------------
@@ -377,13 +377,13 @@
 ;             #:key (compose1 char->integer (curryr string-ref 0) string-downcase)
 ;             "(myfunc) returns a string that starts with 'f', 'F', 'g', or 'G'")
 ;
-; (is-approx  (hash 'username "bobby")
-;             (hash 'username "tom")
-;             #:threshold "tommy"
+; (is-approx  (hash 'username "tom")
+;             (hash 'username "tomas")
 ;             #:key  (curryr hash-ref 'username)
-;             #:diff-with  (lambda (got expected) (substring got 0 (string-length expected)))
-;             #:compare (lambda (diff threshold) (regexp-match (regexp diff) threshold))
-;             "'bobby' has a Levenshtein distance <= 3 to 'tommy'")
+;             #:abs-diff? #f
+;             #:diff-with  (lambda (got expected) (regexp-match (regexp got) expected))
+;             #:compare (lambda (diff threshold) (not (false? diff)))
+;             "first username matched part of second username")
 ;
 ;;----------------------------------------------------------------------
 ; (define/contract (isnt-approx got expected [msg ""]
