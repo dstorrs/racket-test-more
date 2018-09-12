@@ -203,12 +203,13 @@
 ;
 ;;----------------------------------------------------------------------
 ; (throws thnk pred [msg ""])
+; (define/contract (throws thnk pred [msg ""] #:strip-message? [strip-message? #t])
 ;
 ; Verify that a thunk DOES throw an exception and that the exception
 ; matches a specified predicate.
 ;
 ;    'pred' could be anything, but some types are handled specially:
-;        - string: Check if it is exactly the (non-boilerplate) exn message
+;        - string: Check if it is exactly the (perhaps stripped) exn message
 ;        - proc:   Pass it the exn, see if it returns #t
 ;        - regex:  Check if the regex matches the (exn message || string) thrown
 ;        - etc:    Check if it's equal? to the exception
@@ -218,8 +219,8 @@
 ;
 ; NOTE: When providing a string as the value, it is matched against
 ; the exception message (assuming there is an exception).
-; If #:strip-message? is true then everything up to the first
-; "expected: " is snipped off, as is everything after the last \n
+; If #:strip-message? is true (the default) then everything up to the 
+; first "expected: " is snipped off, as is everything after the last \n
 ;
 ;;----------------------------------------------------------------------
 ; (dies thnk [msg ""])
