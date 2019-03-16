@@ -1,10 +1,11 @@
 #lang racket
 
-(require handy/utils
-         )
+(require handy/utils)
 
 (provide prefix-for-test-report ; parameter printed at start of each test
          prefix-for-diag        ; parameter printed at front of each (diag ...) message
+
+         diag              ; print a diagnostic message. see prefix-for-diag
 
          ok                ; A value is true
          not-ok            ; A value is false
@@ -34,7 +35,6 @@
 
          expect-n-tests    ; unless N tests ran, print error at end of file execution
          done-testing      ; never mind how many tests we expect, we're okay if we see this
-         diag              ; print a diagnostic message. see prefix-for-diag
 
          tests-passed      ; # of tests passed so far
          tests-failed      ; # of tests failed so far
@@ -44,9 +44,7 @@
 
          current-test-num  ; return current test number
 
-         ;  You generally should not be using these, but you can if you want
-         inc-test-num!     ; tests start at 1.  Use this to change test number (but why?)
-         next-test-num     ; return next test number and optionally modify it
+         next-test-num     ; return and (optionally & by default) increment next test number 
          )
 
 
@@ -60,7 +58,7 @@
 ;; succeeded"
 ;;
 ;; 3) The tests return nothing.  You can't do conditional tests like:
-;;        (unless (is os 'Windows) (ok test-that-won't-pass-on-windows))
+;;        (when (is os 'Mac) ...mac-specific tests...)
 ;;
 ;;
 ;; This module addresses those problems.  It's named for, and largely a
@@ -92,6 +90,14 @@
 (define _tf (make-parameter 0))                 ; how many tests have failed thus far?
 (define saw-done-testing (make-parameter #f))   ; did we see a (done-testing) call?
 
+(define (message . args)
+  (displayln
+   (string-join (map ~a args))))
+
+(define (unwrap val)
+  (cond [(procedure? val) (val)]
+        [else (force val)]))
+
 ;;----------------------------------------------------------------------
 ;
 ; Parameter: expect-n-tests
@@ -106,7 +112,7 @@
 ; warning will be reported when the tests are run.
 ;
 ; Typically, if you use this you would set it at top of file and then
-; not modify it.  One reason that you might change it pater would be
+; not modify it.  One reason that you might change it later would be
 ; if you had some conditional tests that you determined should be
 ; skipped.
 ;
@@ -116,8 +122,9 @@
 ; Set or get the number of tests passed  and failed.
 ;
 ; Call as (tests-passed) to get the number, (tests-passed 2) to add 2
-; to the number and return it.  Don't change the test numbers unless
-; you know what you're doing.
+; to the number and return it, or (tests-passed -1) if you did a test
+; solely for side effects and don't want it to count on the total.
+; Don't change the test numbers unless you know what you're doing.
 ;
 (define (tests-passed [inc 0])
   (_tp (+ (_tp) inc))
@@ -131,11 +138,17 @@
 
 ;  Track which test we're on. (i.e. test 1, 2, 3....)
 (define current-test-num (make-parameter 0))
-(define (inc-test-num! inc) (current-test-num (+ (current-test-num) inc)))
-(define (next-test-num #:inc [should-increment #t])
-  (define next (add1 (current-test-num)))
-  (when should-increment
-    (current-test-num next))
+(define/contract (inc-test-num! inc)
+  (-> natural-number/c natural-number/c)
+  (current-test-num (+ (current-test-num) inc)))
+
+(define/contract (dec-test-num! dec)
+  (-> (<=/c 0) natural-number/c)
+  (current-test-num (- (current-test-num) dec)))
+
+(define (next-test-num #:inc? [should-increment? #t])
+  (when should-increment?
+    (current-test-num (add1 (current-test-num))))
   (current-test-num))
 
 ;;----------------------------------------------------------------------
@@ -149,9 +162,9 @@
                        (cond [(saw-done-testing) #t]
                              [(equal? (current-test-num) (expect-n-tests)) #t]
                              [(false? (expect-n-tests))
-                              (say "WARNING: Neither (expect-n-tests N) nor (done-testing) was called.  May not have run all tests.")]
+                              (message "WARNING: Neither (expect-n-tests N) nor (done-testing) was called.  May not have run all tests.")]
                              [else
-                              (say (format "\n\t!!ERROR!!:  Expected ~a tests, ~a saw ~a\n"
+                              (message (format "\n\t!!ERROR!!:  Expected ~a tests, ~a saw ~a\n"
                                            (expect-n-tests)
                                            (cond [(> (current-test-num) (expect-n-tests))
                                                   "actually"]
@@ -166,17 +179,18 @@
 ;
 ; All the testing functions defined below are wrappers around this.
 ;
-;  (test-more-check  #:got           got            ; the value to check
-;                    #:expected      [expected #t]  ; what it should be
-;                    #:msg           [msg ""]       ; what message to display
-;                    #:op            [op equal?]    ; (op got expected) determines success
-;                    #:show-expected/got? [show-expected/got? #t] ; display expected and got on fail?
-;                    #:report-expected-as [report-expected-as #f] ; show this as expected on fail
-;                    #:report-got-as      [report-got-as #f]      ; show this as got on fail
-;                    #:return             [return #f]             ; return value
+;  (test-more-check
+;        #:got                    got            ; the value to check
+;        #:expected               [expected #t]  ; what it should be
+;        #:msg                    [msg ""]       ; what message to display
+;        #:op                     [op equal?]    ; (op got expected) determines success
+;        #:show-expected/got?     [show-expected/got? #t] ; display expected and got on fail?
+;        #:report-expected-as     [report-expected-as #f] ; show this as expected on fail
+;        #:report-got-as          [report-got-as #f]      ; show this as got on fail
+;        #:increment-test-number? [increment? #f] ; test-num += 1
+;        #:return                 [return #f]             ; return value
 ;
-; The 'got' value will be sent through handy/utils 'unwrap-val'
-; function before use, meaning that:
+; The 'got' value will be unwrapped before use, meaning that:
 ;
 ;    - If it's a procedure,   it will be executed with no arguments
 ;    - If it's a promise,     it will be forced
@@ -186,26 +200,28 @@
 ; value used.
 ;
 (define/contract
-  (test-more-check  #:got           got
-                    #:expected      [expected #t]
-                    #:msg           [msg ""]
-                    #:op            [op equal?]
-                    #:show-expected/got? [show-expected/got? #t]
-                    #:report-expected-as [report-expected-as #f]
-                    #:report-got-as      [report-got-as #f]
-                    #:return             [return #f]
+  (test-more-check  #:got                    got
+                    #:expected               [expected #t]
+                    #:msg                    [msg ""]
+                    #:op                     [op equal?]
+                    #:show-expected/got?     [show-expected/got? #t]
+                    #:report-expected-as     [report-expected-as #f]
+                    #:report-got-as          [report-got-as #f]
+                    #:return                 [return #f]
+                    #:increment-test-number? [increment? #t]                    
                     )
   (->* (#:got any/c)
-       (#:expected any/c
-        #:msg string?
-        #:op (-> any/c any/c any/c)
-        #:show-expected/got? boolean?
-        #:report-expected-as any/c
-        #:report-got-as any/c
-        #:return any/c
+       (#:expected               any/c
+        #:msg                    string?
+        #:op                     (-> any/c any/c any/c)
+        #:show-expected/got?     boolean?
+        #:report-expected-as     any/c
+        #:report-got-as          any/c
+        #:return                 any/c
+        #:increment-test-number? [increment? #t]
         )
        any)
-  (let* ([success (op (unwrap-val got) expected)]
+  (let* ([success (op (unwrap got) expected)]
          [ok-str (if success "ok " "NOT ok ")]
          [expected-msg (~v (or report-expected-as expected))]
          [got-msg (~v (or report-got-as got))]
@@ -215,20 +231,15 @@
                               "")
                           (if (and (not success) show-expected/got?)
                               (format "\n  Got:      ~a\n  Expected: ~a"
-                                      got-msg
+        x                              got-msg
                                       expected-msg
                                       )
                               ""
                               ))])
     (define pass/fail-counter (if success tests-passed tests-failed))
-    (pass/fail-counter 1)
-    (parameterize ((prefix-for-say (~a (prefix-for-test-report) (prefix-for-say))))
-      (say ok-str (next-test-num) msg-str))
-
-    (if return
-        return ; if we were told what to return, return that
-        got))  ; otherwise, return the result
-  )
+    (pass/fail-counter +1)
+    (message ok-str (next-test-num increment?) msg-str)
+    (or return got)))
 
 ;;----------------------------------------------------------------------
 
@@ -246,12 +257,12 @@
 
 ; opposite of ok
 (define (not-ok val [msg ""])
-  (ok (false? (unwrap-val val))
+  (ok (false? (unwrap val))
       msg))
 
 ; alias for not-ok.  reads a little better
 (define (is-false val [msg ""])
-  (ok (false? (unwrap-val val))
+  (ok (false? (unwrap val))
       msg))
 
 ;;----------------------------------------------------------------------
@@ -325,7 +336,7 @@
               [msg ""]
               [op1 #f]
               #:op [op2 #f])
-  (define op (or op1 op2 (negate equal?)))
+  (define op (negate (or op1 op2 equal?)))
   (test-more-check #:got val
                    #:expected expected
                    #:msg msg
@@ -340,7 +351,7 @@
 (define/contract (like val regex [msg ""])
   (->* (any/c regexp?) (string?) any)
   (define res (regexp-match regex val))
-  (test-more-check #:got (true? res) ; force to boolean
+  (test-more-check #:got ((negate false?) res)       ; force to boolean
                    #:return res
                    #:msg msg
                    #:report-expected-as (~a "<something matching " regex ">")))
@@ -355,11 +366,12 @@
   (->* (any/c regexp?)
        (string?)
        any/c)
-  (test-more-check #:got val
-                   #:expected #t
+  (define res (regexp-match regex val))
+  (test-more-check #:got (false? res)
+                   #:return res
                    #:msg msg
-                   #:report-expected-as (~a "<something NOT matching " regex ">")
-                   #:op (lambda (a b) (not (regexp-match regex val)))))
+                   #:report-expected-as  (~a "<something NOT matching " regex ">")
+                   ))
 
 ;;----------------------------------------------------------------------
 
@@ -371,17 +383,23 @@
 (define/contract (lives thnk [msg ""])
   (->* (procedure?) (string?) any/c)
   (define (make-msg e)
-    (cond [(exn? e) (format "Exception thrown! Test message: '~a'.  Exception: '~a'" msg (exn-message e))]
-          [else
-           (format "Exception thrown! Test message: '~a'.  Exception: '~a'" msg (->string e))]
-          ))
-  (with-handlers (((lambda (e) #t) ; Trap everything
+    (format "Exception thrown! Test message: '~a'.  Exception: '~a'"
+            msg
+            (~a (if (exn? e) (exn-message e) e))))
+
+  (with-handlers ([exn:break? raise] ; allow the user to ^C the program
+                  [exn?
                    (lambda (e)
+                     ; we want to let test-more-check handle the test
+                     ; num, message formatting, etc, but we don't want
+                     ; it to count this as an extra test, so decrement
+                     ; the test number first
+                     (dec-test-num! 1) 
                      (test-more-check #:got #f
+                                      #:expected "<anything that didn't raise an exception> "
                                       #:return e
-                                      #:msg (make-msg e)))))
-    (define result (thnk))
-    (test-more-check #:got result  #:expected result  #:msg msg)))
+                                      #:msg (make-msg e)))])
+    (ok (thnk) msg)))
 
 ;;----------------------------------------------------------------------
 
@@ -409,11 +427,11 @@
        (string? #:strip-message? boolean?)
        any/c)
 
-  ;; (say "in throws")
-  ;; (say "thnk: " thnk)
-  ;; (say "pred: " (~v pred))
-  ;; (say "msg: " msg)
-  ;; (say "strip?: " strip-message?)
+  ;; (message "in throws")
+  ;; (message "thnk: " thnk)
+  ;; (message "pred: " (~v pred))
+  ;; (message "msg: " msg)
+  ;; (message "strip?: " strip-message?)
 
   ;;    'thnk' should generate an exception
   ;;    'msg'  is what test-more-check will report
@@ -426,16 +444,16 @@
   (define (remove-exn-boilerplate s)
     (let* ([str (regexp-replace #px"^.+?expected: " (get-msg s) "")]
            [str (regexp-replace #px"(.+)\n.+$" str "\\1")])
-      ;(say "remove boilerplate, string is: " str)
+      ;(message "remove boilerplate, string is: " str)
       str))
 
-  ;(say "run thunk")
+  ;(message "run thunk")
   (define (accept-all e) #t)
   (define-values (e threw)
     (with-handlers ((exn:break? (lambda (e) (raise e))) ; if user hit ^C, don't eat it
                     (accept-all (lambda (e) (values e #t))))
       (values (thnk) #f)))
-  ;(say "after ran thunk")
+  ;(message "after ran thunk")
 
   (define pred-needs-string (or (string? pred) (regexp? pred)))
   (define e-can-be-string   (or (string? e) (exn? e)))
@@ -443,19 +461,19 @@
     (raise-arguments-error 'throws
                            "predicate was (string or regexp) but thrown value was not (string or exn)"
                            "thrown value" e))
-  ;(say "after raise args")
-  (cond [(false? threw)    ;(say "false")
+  ;(message "after raise args")
+  (cond [(false? threw)    ;(message "false")
          (test-more-check #:got #f  #:msg (~a msg " [DID NOT THROW]")  #:return e)]
-        [(procedure? pred) ;(say "proc")
+        [(procedure? pred) ;(message "proc")
          (test-more-check #:msg msg #:got (and (pred e) #t) #:report-got-as e #:return e)]
-        [(string? pred)    ;(say "string")
+        [(string? pred)    ;(message "string")
          (test-more-check #:msg msg
                           #:got (equal? pred ((if strip-message? remove-exn-boilerplate get-msg) e))
                           #:report-got-as e  #:return e)]
-        [(regexp? pred)    ;(say "regexp. msg is: " (~v (get-msg e)))
-         ;(say "pred is: " pred)
+        [(regexp? pred)    ;(message "regexp. msg is: " (~v (get-msg e)))
+         ;(message "pred is: " pred)
          (test-more-check #:msg msg #:got (regexp-match? pred (get-msg e)) #:report-got-as e  #:return e)]
-        [else              ;(say "else")
+        [else              ;(message "else")
                            (test-more-check #:msg msg #:got e  #:expected pred #:return e)]
         )
   )
@@ -506,9 +524,9 @@
      #'(begin (diag "START test-suite: " msg)
               (lives (thunk body body1 ...  (void)) ; discard return values
                      "test-suite completed without throwing uncaught exception")
-              (say "")
-              (say "Total tests passed so far: " (tests-passed))
-              (say "Total tests failed so far: " (tests-failed))
+              (message "")
+              (message "Total tests passed so far: " (tests-passed))
+              (message "Total tests failed so far: " (tests-failed))
               (diag "END test-suite: " msg))]))
 
 ;;----------------------------------------------------------------------
@@ -591,7 +609,7 @@
 ;
 (define/contract (done-testing)
   (-> any)
-  (say "Done.")
+  (message "Done.")
   (saw-done-testing #t))
 
 ;;----------------------------------------------------------------------
@@ -613,7 +631,7 @@
 (define/contract (diag . args)
   (->* () () #:rest (listof any/c) any)
   (parameterize ([prefix-for-say (~a (prefix-for-diag)  (prefix-for-say))])
-    (say args)))
+    (message args)))
 
 ;;----------------------------------------------------------------------
 
@@ -728,28 +746,28 @@
                         [else
                          (match (list abs-diff? threshold)
                            [(list _ 0)
-                           ;(say "zero")
+                           ;(message "zero")
                             =]
                            [(list #f _) #:when (negative? threshold)
-                           ;(say "negative threshold")
+                           ;(message "negative threshold")
                             (λ (diff threshold) ((between/c threshold 0) diff))]
                            [(list #t _)
-                           ;(say "use abs")
+                           ;(message "use abs")
                             (λ (diff threshold) ((between/c 0 (abs threshold)) (abs diff)))]
                            [(list #f thresh)
-                           ;(say "do not use abs")
+                           ;(message "do not use abs")
                             (λ (diff threshold) ((between/c 0 threshold) diff))])]))
 
- ;(say "key-name: " key-name)
- ;(say "got: "   got)
- ;(say "expected: " expected)
- ;(say "got-result: " got-result)
- ;(say "expected-result: " expected-result)
- ;(say "compare: " compare)
+ ;(message "key-name: " key-name)
+ ;(message "got: "   got)
+ ;(message "expected: " expected)
+ ;(message "got-result: " got-result)
+ ;(message "expected-result: " expected-result)
+ ;(message "compare: " compare)
 
   (define diff ((if abs-diff? abs identity) (diff-with got-result expected-result)))
- ;(say "diff: " diff)
- ;(say "compare result: " (compare diff threshold))
+ ;(message "diff: " diff)
+ ;(message "compare result: " (compare diff threshold))
 
   (test-more-check #:got                got-result
                    #:expected           expected-result
@@ -821,29 +839,29 @@
                          (negate
                           (match (list abs-diff? threshold)
                             [(list _ 0)
-                            ;(say "zero")
+                            ;(message "zero")
                              =]
                             [(list #f _) #:when (negative? threshold)
-                            ;(say "negative threshold")
+                            ;(message "negative threshold")
                              (λ (diff threshold) ((between/c threshold 0) diff))]
                             [(list #t _)
-                            ;(say "use abs")
+                            ;(message "use abs")
                              (λ (diff threshold) ((between/c 0 (abs threshold)) (abs diff)))]
                             [(list #f thresh)
-                            ;(say "do not use abs")
+                            ;(message "do not use abs")
                              (λ (diff threshold) ((between/c 0 threshold) diff))]))]))
 
- ;(say "key-name: " key-name)
- ;(say "got: "   got)
- ;(say "expected: " expected)
- ;(say "got-result: " got-result)
- ;(say "expected-result: " expected-result)
- ;(say "compare: " compare)
+ ;(message "key-name: " key-name)
+ ;(message "got: "   got)
+ ;(message "expected: " expected)
+ ;(message "got-result: " got-result)
+ ;(message "expected-result: " expected-result)
+ ;(message "compare: " compare)
 
 
   (define diff ((if abs-diff? abs identity) (diff-with got-result expected-result)))
- ;(say "diff: " diff)
- ;(say "compare result: " (compare diff threshold))
+ ;(message "diff: " diff)
+ ;(message "compare result: " (compare diff threshold))
 
   (test-more-check #:got                got-result
                    #:expected           expected-result

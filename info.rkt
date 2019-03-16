@@ -2,5 +2,4 @@
 
 (define version 0.1)
 (define collection "test-more")
-
-(define deps '("handy"))
+(define test-omit-paths '("tests/test-main.rkt"))

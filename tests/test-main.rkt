@@ -1,3 +1,5 @@
+#!/usr/bin/env racket
+
 #lang racket
 (require "../main.rkt"
          (only-in handy/utils say))
