@@ -1,17 +1,20 @@
-#!/usr/bin/env racket
+#lang racket/base
 
-#lang racket
 (require "../main.rkt"
-         (only-in handy/utils say))
+         racket/require
+         (multi-in racket (bool file format function list match port))  
+         )
 
-(expect-n-tests 177)
+(define (say . args) (displayln (~a args)))
+
+(expect-n-tests 173)
 
 (define (inner-test thnk [should-pass #t])
   (define result #f)
   (with-output-to-string
     (thunk (set! result (thnk))))
   ((if should-pass tests-passed tests-failed) -1)   ; only count the outer test
-  (inc-test-num! -1) ; only count the outer test
+  (decrement-test-num!) ; only count the outer test
   result)
 
 
@@ -21,7 +24,7 @@
 
  (ok #t "#t works")
  (ok (lambda () 9) "func returning 9 works.")
- (displayln "\t### Next two tests deliberately have no message")
+ (diag "Next two tests deliberately have no message")
  (ok 4)
  (ok (lambda () 9))
  )
@@ -37,7 +40,7 @@
  (is-false (lambda () #f) "is-false works w/ func returning #f.")
  (is-false (equal? 8 2) "is-false confirms that 8 does not equal 2")
 
- (displayln "\t### Next two tests deliberately have no message")
+ (diag "Next two tests deliberately have no message")
  (not-ok #f)
  (not-ok (lambda () #f))
  )
@@ -61,10 +64,10 @@
        7
        "a hash is not 7")
 
- (displayln "\t### Next test deliberately has no message")
- (isnt 3 "abc")
-
- (isnt 8 7  "(isnt 8 7) works when given (negate eq? as a positional arg"  (negate eq?))
+ (isnt 8 7
+       "(isnt 8 7) works when given (negate eq?) as a positional arg"
+       (negate eq?))
+ 
  (isnt 8 8 #:op (negate xor)  "(isnt 8 8) works when given (negate xor) as a keyword arg")
  (isnt 8 #f  "(isnt 8 #f) works when given an 'or' func as a positional and a 'return false' as a keyword arg"
        (lambda (x y)  (or x y))
@@ -72,10 +75,8 @@
  )
 
 (define (test-gives-correct-output thnk regex msg [inc 0])
-  (define output (with-output-to-string (thunk (thnk))))
-  ;; (say "output is: '" output "'")
-  ;; (say "regex is: '" regex "'")
-  (inc-test-num! -1) ; don't count the test inside the thunk
+  (define output (with-output-to-string thnk))
+  (decrement-test-num!) ; don't count the test inside the thunk
   (tests-failed inc)
   (ok (regexp-match regex output) msg)
   )
@@ -86,21 +87,21 @@
 
    (test-gives-correct-output
     (thunk (ok #f "ok msg"))
-    (pregexp "^NOT ok \\d+ - ok msg\n$")
+    (pregexp "^NOT ok\\s+\\d+\\s+-\\s+ok msg\n$")
     "failed 'ok' test that has a msg reports correctly"
     -1
     )
 
    (test-gives-correct-output
     (thunk (ok #f))
-    (pregexp "^NOT ok \\d+\n$")
+    (pregexp "^NOT ok\\s+\\d+\\s+\n$")
     "failed 'ok' test that has no msg reports correctly"
     -1
     )
 
    (test-gives-correct-output
     (thunk (isnt 8 8 "isnt msg"))
-    (pregexp "^NOT ok \\d+ - isnt msg\n  Got:\\s+8\n  Expected: \"<anything but 8>\"\n$")
+    (pregexp "^NOT ok\\s+\\d+\\s+- isnt msg\n\\s*Got:\\s+8\n\\s+Expected: \"<anything but 8>\"\n$")
     "failed 'isnt' test that has a msg reports correctly"
     -1
     )
@@ -108,34 +109,34 @@
 
    (test-gives-correct-output
     (thunk (isnt 8 8))
-    (pregexp "NOT ok \\d+\n  Got:\\s+8\n  Expected: \"<anything but 8>\"\n$")
+    (pregexp "NOT ok\\s+\\d+\\s*\n\\s+Got:\\s+8\\s*\n\\s+Expected:\\s+\"<anything but 8>\"\\s*\n$")
     "failed 'isnt' test that has no msg reports correctly"
     -1
     )
    (test-gives-correct-output
     (thunk (is 8 9 "is msg"))
-    (pregexp "NOT ok \\d+ - is msg\n  Got:\\s+8\n  Expected: 9")
+    (pregexp "NOT ok\\s+\\d+\\s+-\\s+is msg\\s*\n\\s*Got:\\s+8\n\\s+Expected: 9")
     "failed 'is' test that has a msg reports correctly"
     -1
     )
 
    (test-gives-correct-output
     (thunk (is 8 9))
-    (pregexp "NOT ok \\d+\n  Got:\\s+8\n  Expected: 9")
+    (pregexp "NOT ok\\s+\\d+\\s*\n\\s*Got:\\s+8\n\\s+Expected: 9")
     "failed 'is' test that has no msg reports correctly"
     -1
     )
 
    (test-gives-correct-output
     (thunk (unlike "foobar" #px"foo" "unlike msg"))
-    (pregexp "NOT ok \\d+ - unlike msg\n  Got:\\s+\"foobar\"\n  Expected: \"<something NOT matching #px[^\"]+\"foo[^\"]+\"")
+    (pregexp "NOT ok\\s+\\d+\\s+-\\s+unlike msg\\s*\n\\s+Got:\\s+#f\\s*\n\\s+Expected:\\s+\"<something NOT matching #px[^\"]+\"foo[^\"]+\"")
     "failed 'unlike' test that has a msg reports correctly"
     -1
     )
 
    (test-gives-correct-output
     (thunk (unlike "foobar" #px"foo"))
-    (pregexp "NOT ok \\d+\n\\s+Got:\\s+\"foobar\"\n  Expected: \"<something NOT matching #px[^\"]\"foo[^\"]+\">")
+    (pregexp "NOT ok\\s+\\d+\\s*\n\\s*Got:\\s+#f\\s*\n\\s+Expected:\\s+\"<something NOT matching #px[^\"]\"foo[^\"]+\">")
     "failed 'unlike' test that has no msg reports correctly"
     -1
     )
@@ -160,7 +161,7 @@
      (thunk
       (throws (thunk "doesn't throw") "this string not used"))))
  (tests-failed -1)   ; undo the inner test above -- it was supposed to fail.
- (inc-test-num! -1) ; undo the inner test above -- it was supposed to fail.
+ (decrement-test-num!) ; undo the inner test above -- it was supposed to fail.
 
  (like str
        #px"NOT ok.+?\\[DID NOT THROW\\]"
@@ -345,14 +346,14 @@
  (lives (thunk 'foo) "lives succeeds if given a symbol")
 
  (define (do-test thnk type)
-   (with-handlers (( (lambda (e) #t) ; catch everything
-                     (lambda (e)
-                       (ok #f (~a "throws failed to catch a " type))
-                       )))
-     (void (with-output-to-string thnk))
+   (with-handlers ([(lambda (e) #t) ; catch everything
+                    (lambda (e)
+                      (ok #f (~a "throws failed to catch a " type))
+                      )])
+     (define output-str (with-output-to-string thnk))
      ; If we get to here then 'lives' caught the error
      (tests-failed -1)    ; Don't count 'lives' as an actual failure
-     (inc-test-num! -1)  ; In fact, don't count it at all
+     (decrement-test-num!)  ; In fact, don't count it at all
      (ok #t (~a "lives caught a " type))))
 
 
