@@ -1,7 +1,5 @@
 #lang racket
 
-(require handy/utils)
-
 (provide prefix-for-test-report ; parameter printed at start of each test
          prefix-for-diag        ; parameter printed at front of each (diag ...) message
 
@@ -46,6 +44,14 @@
 
          next-test-num     ; return and (optionally & by default) increment next test number 
          )
+
+; The following are defined over in handy/utils, but I want to remove
+; dependence on handy.  The handy version of rand-val has additional
+; functionality.
+(define (path-string->string val) (if (path? val) (path->string val) val))
+(define (rand-val str) (~a str "-" (random 1000000000)))
+
+
 
 
 ;;======================================================================
