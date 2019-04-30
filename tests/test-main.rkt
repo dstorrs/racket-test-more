@@ -2,7 +2,7 @@
 
 (require "../main.rkt"
          racket/require
-         (multi-in racket (bool file format function list match port))  
+         (multi-in racket (bool file format function list match port))
          )
 
 (define (say . args) (displayln (~a args)))
@@ -67,79 +67,68 @@
  (isnt 8 7
        "(isnt 8 7) works when given (negate eq?) as a positional arg"
        (negate eq?))
- 
+
  (isnt 8 8 #:op (negate xor)  "(isnt 8 8) works when given (negate xor) as a keyword arg")
  (isnt 8 #f  "(isnt 8 #f) works when given an 'or' func as a positional and a 'return false' as a keyword arg"
        (lambda (x y)  (or x y))
        #:op (lambda (x y)  #f))
  )
 
-(define (test-gives-correct-output thnk regex msg [inc 0])
-  (define output (with-output-to-string thnk))
-  (decrement-test-num!) ; don't count the test inside the thunk
-  (tests-failed inc)
-  (ok (regexp-match regex output) msg)
-  )
-
 (when #t
   (test-suite
    "tests that fail give correct messages"
 
+   (define (test-gives-correct-output thnk regex msg)
+     (define-values (succeeded-pre failed-pre) (values (tests-passed) (tests-failed)))
+     (define output (with-output-to-string thnk))
+     (decrement-test-num!) ; don't count the test inside the thunk
+
+     (cond [(> (tests-passed) succeeded-pre) (tests-passed -1)]
+           [(> (tests-failed) failed-pre)    (tests-failed -1)])
+
+     (ok (regexp-match regex output) msg))
+
+
    (test-gives-correct-output
     (thunk (ok #f "ok msg"))
     (pregexp "^NOT ok\\s+\\d+\\s+-\\s+ok msg\n$")
-    "failed 'ok' test that has a msg reports correctly"
-    -1
-    )
+    "failed 'ok' test that has a msg reports correctly")
 
    (test-gives-correct-output
     (thunk (ok #f))
     (pregexp "^NOT ok\\s+\\d+\\s+\n$")
-    "failed 'ok' test that has no msg reports correctly"
-    -1
-    )
+    "failed 'ok' test that has no msg reports correctly")
 
    (test-gives-correct-output
     (thunk (isnt 8 8 "isnt msg"))
     (pregexp "^NOT ok\\s+\\d+\\s+- isnt msg\n\\s*Got:\\s+8\n\\s+Expected: \"<anything but 8>\"\n$")
-    "failed 'isnt' test that has a msg reports correctly"
-    -1
-    )
+    "failed 'isnt' test that has a msg reports correctly")
 
 
    (test-gives-correct-output
     (thunk (isnt 8 8))
     (pregexp "NOT ok\\s+\\d+\\s*\n\\s+Got:\\s+8\\s*\n\\s+Expected:\\s+\"<anything but 8>\"\\s*\n$")
-    "failed 'isnt' test that has no msg reports correctly"
-    -1
-    )
+    "failed 'isnt' test that has no msg reports correctly")
+
    (test-gives-correct-output
     (thunk (is 8 9 "is msg"))
     (pregexp "NOT ok\\s+\\d+\\s+-\\s+is msg\\s*\n\\s*Got:\\s+8\n\\s+Expected: 9")
-    "failed 'is' test that has a msg reports correctly"
-    -1
-    )
+    "failed 'is' test that has a msg reports correctly")
 
    (test-gives-correct-output
     (thunk (is 8 9))
     (pregexp "NOT ok\\s+\\d+\\s*\n\\s*Got:\\s+8\n\\s+Expected: 9")
-    "failed 'is' test that has no msg reports correctly"
-    -1
-    )
+    "failed 'is' test that has no msg reports correctly")
 
    (test-gives-correct-output
     (thunk (unlike "foobar" #px"foo" "unlike msg"))
     (pregexp "NOT ok\\s+\\d+\\s+-\\s+unlike msg\\s*\n\\s+Got:\\s+#f\\s*\n\\s+Expected:\\s+\"<something NOT matching #px[^\"]+\"foo[^\"]+\"")
-    "failed 'unlike' test that has a msg reports correctly"
-    -1
-    )
+    "failed 'unlike' test that has a msg reports correctly")
 
    (test-gives-correct-output
     (thunk (unlike "foobar" #px"foo"))
     (pregexp "NOT ok\\s+\\d+\\s*\n\\s*Got:\\s+#f\\s*\n\\s+Expected:\\s+\"<something NOT matching #px[^\"]\"foo[^\"]+\">")
-    "failed 'unlike' test that has no msg reports correctly"
-    -1
-    )
+    "failed 'unlike' test that has no msg reports correctly")
 
    ); test-suite
   ); when
@@ -160,6 +149,7 @@
    (with-output-to-string
      (thunk
       (throws (thunk "doesn't throw") "this string not used"))))
+
  (tests-failed -1)   ; undo the inner test above -- it was supposed to fail.
  (decrement-test-num!) ; undo the inner test above -- it was supposed to fail.
 
@@ -343,29 +333,7 @@
  "lives"
  (lives (thunk 7) "lives succeeds if given a number")
  (lives (thunk "foo") "lives succeeds if given a string")
- (lives (thunk 'foo) "lives succeeds if given a symbol")
-
- (define (do-test thnk type)
-   (with-handlers ([(lambda (e) #t) ; catch everything
-                    (lambda (e)
-                      (ok #f (~a "throws failed to catch a " type))
-                      )])
-     (define output-str (with-output-to-string thnk))
-     ; If we get to here then 'lives' caught the error
-     (tests-failed -1)    ; Don't count 'lives' as an actual failure
-     (decrement-test-num!)  ; In fact, don't count it at all
-     (ok #t (~a "lives caught a " type))))
-
-
- (do-test (thunk (lives (thunk (raise "foo"))))
-          "string")
-
- (do-test (thunk (lives (thunk (raise 8))))
-          "number")
-
- (do-test (thunk (lives (thunk (raise-argument-error 'foo "foo" 7))))
-          "raise-argument-error exception")
- )
+ (lives (thunk 'foo) "lives succeeds if given a symbol"))
 
 (when #t
   (test-suite
