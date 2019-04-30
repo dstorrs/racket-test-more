@@ -1,12 +1,15 @@
 (provide prefix-for-test-report ; parameter printed at start of each test
          prefix-for-diag        ; parameter printed at front of each (diag ...) message
+
+	 diag			; print a diagnostic message. see prefix-for-diag
 	 
          ok                ; A value is true
          not-ok            ; A value is false
          is-false          ; Alias for not-ok
-         is                ; A value is what it should be
-	 
+
+	 is                ; A value is what it should be
          isnt              ; ...or is not what it shouldn't be
+
          like              ; A value matches a regex
          unlike            ; A value does not match a regex
 	 
@@ -30,16 +33,14 @@
          expect-n-tests    ; unless N tests ran, print error at end of file execution
          done-testing      ; never mind how many tests we expect, we're okay if we see this
 	 
-         diag              ; print a diagnostic message. see prefix-for-diag
-	 
          test-more-check   ; fundamental test procedure.  All others call this
 	 
          ;  You generally should not be using these, but you can if you want
          current-test-num  ; return current test number
-         tests-passed      ; # of tests passed so far
-         tests-failed      ; # of tests failed so far
-         inc-test-num!     ; tests start at 1.  Use this to change test number (but why?)
-         next-test-num     ; return next test number and optionally modify it
+	 next-test-num	   ; return and (optionally & by default) increment next test number
+	 
+         ; reduce the test number by N (default: 1).  Mostly needed for running inner tests
+	 decrement-test-num! 
 
 ;;======================================================================
 ;;    The racket testing module has a few things I wish it did differently:
@@ -51,7 +52,7 @@
 ;; succeeded"
 ;;
 ;; 3) The tests return nothing.  You can't do conditional tests like:
-;;        (unless (is os 'Windows) (ok test-that-won't-pass-on-windows))
+;;        (when (is os 'macos) (ok mac-specific-tests))
 ;;
 ;;
 ;; This module addresses those problems.  It's named for, and largely a
@@ -92,16 +93,6 @@
 ; skipped.
 ;
 ;----------------------------------------------------------------------
-; tests-passed
-;
-; Set or get the number of tests passed  and failed.
-;
-; Call as (tests-passed) to get the number, (tests-passed 2) to add 2
-; to the number and return it.
-;
-; DON'T CHANGE THE TEST NUMBERS UNLESS YOU KNOW WHAT YOU'RE DOING.
-;
-;----------------------------------------------------------------------
 ;
 ; Functions associated with the test number.
 ;
@@ -109,9 +100,6 @@
 ;
 ;    ; parameter that tracks current number
 ;    current-test-num      
-;
-;    ; update the test number.  
-;    (inc-test-num! inc)   ; increase the current test number by 'inc'
 ;
 ;    ; Get and, by default, increment the test number by 1
 ;    (next-test-num #:inc [should-increment #t])  
