@@ -176,7 +176,8 @@
                                                      [else "only"])
                                                (current-test-num)))
                               #t])
-                       (plumber-flush-handle-remove! flush-handle))))
+                       (plumber-flush-handle-remove! flush-handle)
+                       (exit (if (= 0 (tests-failed)) 0 1)))))
 
 ;;----------------------------------------------------------------------
 
