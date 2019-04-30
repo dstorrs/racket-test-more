@@ -170,11 +170,11 @@
                               (message "WARNING: Neither (expect-n-tests N) nor (done-testing) was called.  May not have run all tests.")]
                              [else
                               (message (format "\n\t!!ERROR!!:  Expected ~a tests, ~a saw ~a\n"
-                                           (expect-n-tests)
-                                           (cond [(> (current-test-num) (expect-n-tests))
-                                                  "actually"]
-                                                 [else "only"])
-                                           (current-test-num)))
+                                               (expect-n-tests)
+                                               (cond [(> (current-test-num) (expect-n-tests))
+                                                      "actually"]
+                                                     [else "only"])
+                                               (current-test-num)))
                               #t])
                        (plumber-flush-handle-remove! flush-handle))))
 
@@ -479,7 +479,7 @@
          ;(message "pred is: " pred)
          (test-more-check #:msg msg #:got (regexp-match? pred (get-msg e)) #:report-got-as e  #:return e)]
         [else              ;(message "else")
-                           (test-more-check #:msg msg #:got e  #:expected pred #:return e)]
+         (test-more-check #:msg msg #:got e  #:expected pred #:return e)]
         )
   )
 
@@ -581,6 +581,7 @@
                                  #:text [text (rand-val "test file contents")]
                                  #:overwrite [overwrite #t])
   (->* () (path-string? #:text string? #:overwrite boolean?) path-string?)
+
   (define-values (dir fn ignore) (split-path fpath))
 
   (make-directory* dir) ; this doesn't fail if the directory exists, so no reason not to do it
@@ -623,9 +624,8 @@
 ;
 ; Variadic print statement that outputs the specified items with a
 ; standard prefix, stored in the 'prefix-for-diag' parameter.  By
-; default this is "\t#### ", that's easy for test output analyzers to
-; detect.  This prefix is prepended to the current value of the
-; prefix-for-say parameter, so this:
+; default this is "\t#### ", which is intended to be easy for test
+; output analyzers to detect.
 ;
 ;    (parameterize ([prefix-for-diag "my awesome message"])
 ;        (diag "foobar"))
@@ -751,28 +751,28 @@
                         [else
                          (match (list abs-diff? threshold)
                            [(list _ 0)
-                           ;(message "zero")
+                            ;(message "zero")
                             =]
                            [(list #f _) #:when (negative? threshold)
-                           ;(message "negative threshold")
+                            ;(message "negative threshold")
                             (λ (diff threshold) ((between/c threshold 0) diff))]
                            [(list #t _)
-                           ;(message "use abs")
+                            ;(message "use abs")
                             (λ (diff threshold) ((between/c 0 (abs threshold)) (abs diff)))]
                            [(list #f thresh)
-                           ;(message "do not use abs")
+                            ;(message "do not use abs")
                             (λ (diff threshold) ((between/c 0 threshold) diff))])]))
 
- ;(message "key-name: " key-name)
- ;(message "got: "   got)
- ;(message "expected: " expected)
- ;(message "got-result: " got-result)
- ;(message "expected-result: " expected-result)
- ;(message "compare: " compare)
+  ;(message "key-name: " key-name)
+  ;(message "got: "   got)
+  ;(message "expected: " expected)
+  ;(message "got-result: " got-result)
+  ;(message "expected-result: " expected-result)
+  ;(message "compare: " compare)
 
   (define diff ((if abs-diff? abs identity) (diff-with got-result expected-result)))
- ;(message "diff: " diff)
- ;(message "compare result: " (compare diff threshold))
+  ;(message "diff: " diff)
+  ;(message "compare result: " (compare diff threshold))
 
   (test-more-check #:got                got-result
                    #:expected           expected-result
@@ -844,29 +844,29 @@
                          (negate
                           (match (list abs-diff? threshold)
                             [(list _ 0)
-                            ;(message "zero")
+                             ;(message "zero")
                              =]
                             [(list #f _) #:when (negative? threshold)
-                            ;(message "negative threshold")
+                             ;(message "negative threshold")
                              (λ (diff threshold) ((between/c threshold 0) diff))]
                             [(list #t _)
-                            ;(message "use abs")
+                             ;(message "use abs")
                              (λ (diff threshold) ((between/c 0 (abs threshold)) (abs diff)))]
                             [(list #f thresh)
-                            ;(message "do not use abs")
+                             ;(message "do not use abs")
                              (λ (diff threshold) ((between/c 0 threshold) diff))]))]))
 
- ;(message "key-name: " key-name)
- ;(message "got: "   got)
- ;(message "expected: " expected)
- ;(message "got-result: " got-result)
- ;(message "expected-result: " expected-result)
- ;(message "compare: " compare)
+  ;(message "key-name: " key-name)
+  ;(message "got: "   got)
+  ;(message "expected: " expected)
+  ;(message "got-result: " got-result)
+  ;(message "expected-result: " expected-result)
+  ;(message "compare: " compare)
 
 
   (define diff ((if abs-diff? abs identity) (diff-with got-result expected-result)))
- ;(message "diff: " diff)
- ;(message "compare result: " (compare diff threshold))
+  ;(message "diff: " diff)
+  ;(message "compare result: " (compare diff threshold))
 
   (test-more-check #:got                got-result
                    #:expected           expected-result
