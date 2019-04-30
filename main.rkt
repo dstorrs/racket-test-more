@@ -1,5 +1,9 @@
-#lang racket
+#lang racket/base
 
+(require (for-syntax racket/base racket/syntax syntax/parse)
+         racket/require
+         (multi-in racket (bool contract file format function match string promise))  
+         )
 (provide prefix-for-test-report ; parameter printed at start of each test
          prefix-for-diag        ; parameter printed at front of each (diag ...) message
 
@@ -525,7 +529,7 @@
 ; ### END test-suite: user creation
 ;
 (define-syntax (test-suite stx)
-  (syntax-case stx ()
+  (syntax-parse stx
     [(_ msg body body1 ...)
      #'(begin (diag "START test-suite: " msg)
               (lives (thunk body body1 ...  (void)) ; discard return values
