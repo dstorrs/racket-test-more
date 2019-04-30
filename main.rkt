@@ -213,8 +213,8 @@
                     #:show-expected/got?     [show-expected/got? #t]
                     #:report-expected-as     [report-expected-as #f]
                     #:report-got-as          [report-got-as #f]
-                    #:return                 [return #f]
-                    #:increment-test-number? [increment? #t]                    
+                    #:return                 [return the-unsupplied-arg]
+                    #:increment-test-number? [increment? #t]
                     )
   (->* (#:got any/c)
        (#:expected               any/c
@@ -224,7 +224,7 @@
         #:report-expected-as     any/c
         #:report-got-as          any/c
         #:return                 any/c
-        #:increment-test-number? [increment? #t]
+        #:increment-test-number? boolean?
         )
        any)
   (let* ([success (op (unwrap got) expected)]
@@ -237,15 +237,15 @@
                               "")
                           (if (and (not success) show-expected/got?)
                               (format "\n  Got:      ~a\n  Expected: ~a"
-        x                              got-msg
+                                      got-msg
                                       expected-msg
                                       )
                               ""
                               ))])
     (define pass/fail-counter (if success tests-passed tests-failed))
     (pass/fail-counter +1)
-    (message ok-str (next-test-num increment?) msg-str)
-    (or return got)))
+    (message ok-str (next-test-num #:inc? increment?) msg-str)
+    (if (unsupplied-arg? return) got return)))
 
 ;;----------------------------------------------------------------------
 
@@ -342,7 +342,7 @@
               [msg ""]
               [op1 #f]
               #:op [op2 #f])
-  (define op (negate (or op1 op2 equal?)))
+  (define op (or op1 op2 (negate equal?)))
   (test-more-check #:got val
                    #:expected expected
                    #:msg msg
@@ -374,7 +374,7 @@
        any/c)
   (define res (regexp-match regex val))
   (test-more-check #:got (false? res)
-                   #:return res
+                   #:return val
                    #:msg msg
                    #:report-expected-as  (~a "<something NOT matching " regex ">")
                    ))
@@ -394,7 +394,7 @@
             (~a (if (exn? e) (exn-message e) e))))
 
   (with-handlers ([exn:break? raise] ; allow the user to ^C the program
-                  [exn?
+                  [(lambda (e) #t) ; catch everything
                    (lambda (e)
                      ; we want to let test-more-check handle the test
                      ; num, message formatting, etc, but we don't want
@@ -636,8 +636,7 @@
 (define prefix-for-diag (make-parameter "######## "))
 (define/contract (diag . args)
   (->* () () #:rest (listof any/c) any)
-  (parameterize ([prefix-for-say (~a (prefix-for-diag)  (prefix-for-say))])
-    (message args)))
+  (message (prefix-for-diag) args))
 
 ;;----------------------------------------------------------------------
 
@@ -880,3 +879,8 @@
   )
 
 ;;----------------------------------------------------------------------
+
+; 'racket main.rkt' should not have output, so explicitly state that
+; we aren't expecting to run tests so that we don't get the "I don't
+; know how many tests you wanted" warning
+(expect-n-tests 0) 
