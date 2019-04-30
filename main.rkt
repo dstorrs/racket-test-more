@@ -42,7 +42,10 @@
 
          current-test-num  ; return current test number
 
-         next-test-num     ; return and (optionally & by default) increment next test number 
+         next-test-num     ; return and (optionally & by default) increment next test number
+
+         ; reduce the test number by N (default: 1).  Mostly needed for running inner tests
+         decrement-test-num!
          )
 
 ; The following are defined over in handy/utils, but I want to remove
@@ -144,13 +147,9 @@
 
 ;  Track which test we're on. (i.e. test 1, 2, 3....)
 (define current-test-num (make-parameter 0))
-(define/contract (inc-test-num! inc)
-  (-> natural-number/c natural-number/c)
-  (current-test-num (+ (current-test-num) inc)))
 
-(define/contract (dec-test-num! dec)
-  (-> (<=/c 0) natural-number/c)
-  (current-test-num (- (current-test-num) dec)))
+(define (decrement-test-num! [arg 1])
+  (current-test-num (- (current-test-num) arg)))
 
 (define (next-test-num #:inc? [should-increment? #t])
   (when should-increment?
@@ -400,7 +399,7 @@
                      ; num, message formatting, etc, but we don't want
                      ; it to count this as an extra test, so decrement
                      ; the test number first
-                     (dec-test-num! 1) 
+                     (decrement-test-num!)
                      (test-more-check #:got #f
                                       #:expected "<anything that didn't raise an exception> "
                                       #:return e
