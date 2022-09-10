@@ -2,7 +2,7 @@
 
 (require (for-syntax racket/base racket/syntax syntax/parse)
          racket/require
-         (multi-in racket (bool contract file format function match string promise))  
+         (multi-in racket (bool contract file format function match promise port string))
          )
 (provide prefix-for-test-report ; parameter printed at start of each test
          prefix-for-diag        ; parameter printed at front of each (diag ...) message
@@ -30,6 +30,8 @@
 
          is-approx         ; value is roughly the expected value
          isnt-approx       ; ...or not
+
+         is-output         ; is the stdout/stderr output what we expect
 
          test-suite        ; gather a set of tests together, trap exns, output some extra debugging
 
@@ -758,8 +760,8 @@
                             ;(message "zero")
                             =]
                            [(list #f _) #:when (negative? threshold)
-                            ;(message "negative threshold")
-                            (λ (diff threshold) ((between/c threshold 0) diff))]
+                                        ;(message "negative threshold")
+                                        (λ (diff threshold) ((between/c threshold 0) diff))]
                            [(list #t _)
                             ;(message "use abs")
                             (λ (diff threshold) ((between/c 0 (abs threshold)) (abs diff)))]
@@ -851,8 +853,8 @@
                              ;(message "zero")
                              =]
                             [(list #f _) #:when (negative? threshold)
-                             ;(message "negative threshold")
-                             (λ (diff threshold) ((between/c threshold 0) diff))]
+                                         ;(message "negative threshold")
+                                         (λ (diff threshold) ((between/c threshold 0) diff))]
                             [(list #t _)
                              ;(message "use abs")
                              (λ (diff threshold) ((between/c 0 (abs threshold)) (abs diff)))]
@@ -882,9 +884,29 @@
 
   )
 
+(define-syntax (is-output stx)
+  (syntax-parse stx
+    [(is-output expr correct msg)
+     #'(is
+        (call-with-output-string
+         (lambda (p)
+           (parameterize ([current-output-port p])
+             expr)))
+        correct msg)
+     ]
+    [(is-output #:err expr correct msg)
+     #'(is
+        (call-with-output-string
+         (lambda (p)
+           (parameterize ([current-error-port p])
+             expr)))
+        correct msg)
+     ]
+    )
+  )
 ;;----------------------------------------------------------------------
 
 ; 'racket main.rkt' should not have output, so explicitly state that
 ; we aren't expecting to run tests so that we don't get the "I don't
 ; know how many tests you wanted" warning
-(expect-n-tests 0) 
+(expect-n-tests 0)

@@ -431,6 +431,21 @@
    )
   )
 
+(test-suite
+ "capturing and testing the output from an expression"
+
+ (is-output (displayln "foo")
+            "foo\n"
+            "got the expected 'foo' output from displayln, no port specified")
+
+ (is-output #:err (displayln "foo" (current-error-port))
+            "foo\n"
+            "got the expected 'foo' output from displayln on stderr")
+
+ (is-output #:err (displayln "testing text..")
+            ""
+            "as expected, captured no output from stderr when we printed to stdout")
+ )
 ;;  @@TODO
 ;; https://docs.racket-lang.org/overeasy/index.html
 ;; - capture data from stdout and stderr, report on that
